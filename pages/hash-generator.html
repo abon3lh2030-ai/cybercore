@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hash Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #141c2f;
+            padding: 24px;
+            border-radius: 16px;
+            width: 700px;
+            box-sizing: border-box;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        .out {
+            background: #0b1120;
+            padding: 8px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+        button {
+            padding: 8px 12px;
+            margin: 6px 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>Hash Generator</h2>
+        <textarea id="txt" placeholder="Type or paste your text here..."></textarea>
+        <br>
+        <button onclick="gen()">Generate</button>
+        <div id="res"></div>
+    </div>
+
+    <script>
+        // Function to hash the text using Crypto API
+        async function generateHash(algo, message) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(message);
+            const hashBuffer = await crypto.subtle.digest(algo, data);
+            
+            // Convert ArrayBuffer to Hexadecimal string
+            return Array.from(new Uint8Array(hashBuffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        // Main function to output results on button click
+        async function gen() {
+            const textInput = document.getElementById('txt').value;
+            const resultDiv = document.getElementById('res');
+            
+            // Clear previous results
+            resultDiv.innerHTML = ''; 
+
+            // Target hashing algorithms
+            const algorithms = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512'];
+
+            for (const algo of algorithms) {
+                const hashResult = await generateHash(algo, textInput);
+
+                // Create container element
+                const container = document.createElement('div');
+                
+                container.innerHTML = `
+                    <h4>${algo}</h4>
+                    <div class="out">${hashResult}</div>
+                `;
+
+                // Create copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = 'Copy';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(hashResult);
+                    alert(`${algo} hash copied to clipboard successfully!`);
+                };
+
+                container.appendChild(copyBtn);
+                resultDiv.appendChild(container);
+            }
+        }
+    </script>
+
+</body>
+</html>

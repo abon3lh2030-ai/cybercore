@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AES-GCM Encryptor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #141c2f;
+            padding: 24px;
+            border-radius: 16px;
+            width: 700px;
+            box-sizing: border-box;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        input[type="text"] {
+            height: 40px;
+        }
+        .out {
+            background: #0b1120;
+            padding: 8px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 8px 0;
+            font-family: monospace;
+            min-height: 20px;
+        }
+        button {
+            padding: 8px 12px;
+            margin: 6px 5px 6px 0;
+            cursor: pointer;
+        }
+        .btn-container {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>AES-GCM Encryptor</h2>
+        
+        <textarea id="inputData" placeholder="Enter text to encrypt OR base64 to decrypt..."></textarea>
+        <input type="text" id="secretKey" placeholder="Enter Secret Key (Password)">
+        
+        <div class="btn-container">
+            <button onclick="processCrypto('encrypt')">Encrypt</button>
+            <button onclick="processCrypto('decrypt')">Decrypt</button>
+        </div>
+
+        <div id="res"></div>
+    </div>
+
+    <script>
+        // دالة لتوليد واستخلاص مفتاح تشفير حقيقي من الباسورد
+        async function deriveKey(passphrase) {
+            const encoder = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey(
+                "raw",
+                encoder.encode(passphrase),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            );
+            
+            const salt = encoder.encode("CyberCoreSalt123"); 
+            return crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        // الدالة الأساسية لمعالجة التشفير وفك التشفير وعرض النتيجة بنفس طريقة الملف الأول
+        async function processCrypto(action) {
+            const data = document.getElementById('inputData').value.trim();
+            const pass = document.getElementById('secretKey').value;
+            const resultDiv = document.getElementById('res');
+
+            if (!data || !pass) {
+                alert("Please fill in both the Data and Secret Key fields!");
+                return;
+            }
+
+            // تفريغ النتائج السابقة
+            resultDiv.innerHTML = ''; 
+
+            try {
+                const key = await deriveKey(pass);
+                const encoder = new TextEncoder();
+                let finalResult = "";
+
+                if (action === 'encrypt') {
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const encodedData = encoder.encode(data);
+
+                    const encryptedBuffer = await crypto.subtle.encrypt(
+                        { name: "AES-GCM", iv: iv },
+                        key,
+                        encodedData
+                    );
+
+                    const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+                    combined.set(iv, 0);
+                    combined.set(new Uint8Array(encryptedBuffer), iv.length);
+
+                    finalResult = btoa(String.fromCharCode(...combined));
+
+                } else if (action === 'decrypt') {
+                    const binaryData = atob(data);
+                    const bytes = new Uint8Array(binaryData.length).map((_, i) => binaryData.charCodeAt(i));
+
+                    const iv = bytes.slice(0, 12);
+                    const encryptedData = bytes.slice(12);
+
+                    const decryptedBuffer = await crypto.subtle.decrypt(
+                        { name: "AES-GCM", iv: iv },
+                        key,
+                        encryptedData
+                    );
+
+                    const decoder = new TextDecoder();
+                    finalResult = decoder.decode(decryptedBuffer);
+                }
+
+                // بناء العناصر وعرضها بنفس الستاين والهيكلية للملف الأول بالضبط
+                const div = document.createElement('div');
+                div.innerHTML = `<h4>Result (${action.toUpperCase()})</h4><div class="out">${finalResult}</div>`;
+                
+                const btn = document.createElement('button');
+                btn.textContent = 'Copy';
+                btn.onclick = () => {
+                    navigator.clipboard.writeText(finalResult);
+                    alert('Result copied to clipboard!');
+                };
+                
+                div.appendChild(btn);
+                resultDiv.appendChild(div);
+
+            } catch (error) {
+                console.error(error);
+                const div = document.createElement('div');
+                div.innerHTML = `<h4>Error</h4><div class="out" style="color: #ff6b6b;">Invalid Key or Corrupted Data!</div>`;
+                resultDiv.appendChild(div);
+            }
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IP Lookup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #141c2f;
+            padding: 24px;
+            border-radius: 16px;
+            width: 700px;
+            box-sizing: border-box;
+        }
+        input[type="text"] {
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #0b1120;
+            color: #fff;
+            border: 1px solid #1f2335;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+        .out {
+            background: #0b1120;
+            padding: 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 8px 0;
+            font-family: monospace;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 16px;
+            margin: 6px 0;
+            cursor: pointer;
+            background: #00f0ff;
+            color: #0b1120;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #00b8d4;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>IP Geolocation Lookup</h2>        
+        <input type="text" id="ipInput" placeholder="Enter IP Address (e.g., 8.8.8.8)">
+        <br>
+        <button onclick="scanIP()">Scan IP</button>
+        <div id="res"></div>
+    </div>
+
+    <script>
+        // دالة معالجة البيانات القادمة من خدمة ipinfo المستقرة
+        function processIPResponse(data) {
+            const resultDiv = document.getElementById('res');
+            
+            if (!data || !data.ip) {
+                resultDiv.innerHTML = `<h4>Error</h4><div class="out" style="color:#ff4757;">Unable to parse IP data. Please check the IP format.</div>`;
+                return;
+            }
+
+            // تقسيم خطوط الطول والعرض إذا كانت متوفرة في حقل loc
+            let latitude = "N/A", longitude = "N/A";
+            if (data.loc) {
+                const parts = data.loc.split(',');
+                latitude = parts[0];
+                longitude = parts[1];
+            }
+
+            resultDiv.innerHTML = '';
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <h4>IP Geolocation Report</h4>
+                <div class="out">
+                    <strong>Target IP:</strong> ${data.ip}<br>
+                    <strong>Country:</strong> ${data.country || "N/A"}<br>
+                    <strong>City:</strong> ${data.city || "N/A"}<br>
+                    <strong>Region/State:</strong> ${data.region || "N/A"}<br>
+                    <strong>Postal/Zip Code:</strong> ${data.postal || "N/A"}<br>
+                    <strong>Timezone:</strong> ${data.timezone || "N/A"}<br>
+                    <strong>ISP / Organization:</strong> ${data.org || "N/A"}<br>
+                    <strong>Latitude / Longitude:</strong> ${latitude}, ${longitude}
+                </div>
+            `;
+            resultDiv.appendChild(div);
+            
+            // تنظيف السكربت من الصفحة بعد الانتهاء
+            const oldScript = document.getElementById('jsonpSecureScript');
+            if (oldScript) oldScript.remove();
+        }
+
+        function scanIP() {
+            const ipValue = document.getElementById('ipInput').value.trim();
+            const resultDiv = document.getElementById('res');
+
+            if (!ipValue) {
+                alert("Please enter an IP address!");
+                return;
+            }
+
+            resultDiv.innerHTML = '<h4>Locating IP...</h4><div class="out">Connecting to open global database...</div>';
+
+            // حذف أي سكربت قديم معلق
+            const oldScript = document.getElementById('jsonpSecureScript');
+            if (oldScript) oldScript.remove();
+
+            // إنشاء طلب JSONP لخدمة ipinfo.io المستقرة جداً والتي تتخطى الـ CORS والـ HTTPS مجاناً وبدون مفتاح
+            const script = document.createElement('script');
+            script.id = 'jsonpSecureScript';
+            script.src = `https://ipinfo.io/${ipValue}/json?callback=processIPResponse`;
+            
+            script.onerror = function() {
+                resultDiv.innerHTML = `<h4>Error</h4><div class="out" style="color:#ff4757;">Failed to fetch data. Make sure it's a valid IP and your network is active.</div>`;
+            };
+
+            document.body.appendChild(script);
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>File Scanner - No API Required</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #141c2f;
+            padding: 24px;
+            border-radius: 16px;
+            width: 700px;
+            box-sizing: border-box;
+        }
+        .file-drop-area {
+            border: 2px dashed #3b4252;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background: #0b1120;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+        .file-drop-area:hover {
+            border-color: #00f0ff;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .out {
+            background: #0b1120;
+            padding: 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 8px 0;
+            font-family: monospace;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 16px;
+            margin: 6px 0;
+            cursor: pointer;
+            background: #00f0ff;
+            color: #0b1120;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #00b8d4;
+        }
+        .vt-btn {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 16px;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .vt-btn:hover {
+            background: #2563eb;
+        }
+        .info-tag {
+            color: #ffa502;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>Smart File Hash Scanner (Free & Private)</h2>
+        
+        <div class="file-drop-area" onclick="document.getElementById('fileInput').click()">
+            <span id="dropText">Click here to browse or select a file</span>
+            <input type="file" id="fileInput" onchange="handleFile(this.files)">
+        </div>
+
+        <button onclick="scanFile()">Scan File</button>
+        <div id="res"></div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        function handleFile(files) {
+            if (files.length > 0) {
+                selectedFile = files[0];
+                document.getElementById('dropText').textContent = `Selected: ${selectedFile.name}`;
+            }
+        }
+
+        async function scanFile() {
+            const resultDiv = document.getElementById('res');
+
+            if (!selectedFile) {
+                alert("Please select a file first!");
+                return;
+            }
+
+            resultDiv.innerHTML = '<h4>Processing...</h4><div class="out">Computing cryptographic file SHA-256 local hash securely...</div>';
+
+            try {
+                // حساب الـ Hash محلياً بالكامل داخل متصفحك (خصوصية تامة للملف)
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                const fileHash = Array.from(new Uint8Array(hashBuffer))
+                                     .map(b => b.toString(16).padStart(2, '0'))
+                                     .join('');
+
+                // حساب حجم الملف بشكل مقروء
+                const fileSize = (selectedFile.size / (1024 * 1024)).toFixed(2); // ميغابايت
+
+                resultDiv.innerHTML = '';
+                const div = document.createElement('div');
+                
+                // توليد رابط البحث المباشر في VirusTotal بناءً على الـ Hash الناتجة
+                const vtSearchUrl = `https://www.virustotal.com/gui/file/${fileHash}`;
+
+                div.innerHTML = `
+                    <h4>Local File Intelligence Report</h4>
+                    <div class="out">
+                        <strong>File Name:</strong> ${selectedFile.name}<br>
+                        <strong>File Size:</strong> ${fileSize} MB<br>
+                        <strong>File Type:</strong> ${selectedFile.type || "Unknown / Binary"}<br>
+                        <strong>Generated SHA-256 Hash:</strong> <span style="color: #00f0ff;">${fileHash}</span><br><br>
+                        <span class="info-tag">Note:</span> Your file was analyzed locally. Click the button below to instantly query the global database for previous threat matches.
+                    </div>
+                    <a href="${vtSearchUrl}" target="_blank" class="vt-btn">🔍 Check VirusTotal Global Database</a>
+                `;
+                
+                resultDiv.appendChild(div);
+
+            } catch (error) {
+                console.error(error);
+                resultDiv.innerHTML = '<h4>Error</h4><div class="out" style="color:#ff4757;">Failed to process file locally. Try another file.</div>';
+            }
+        }
+    </script>
+
+</body>
+</html>
